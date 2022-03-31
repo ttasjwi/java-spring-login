@@ -21,4 +21,8 @@ public class Member {
     public boolean matchLoginId(String loginId) {
         return this.loginId.equals(loginId);
     }
+
+    public boolean matchPassword(String password) {
+        return this.password.equals(password);
+    }
 }
