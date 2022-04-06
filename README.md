@@ -113,3 +113,54 @@ public String loginHome(
 - 세션 만료 : 요청의 sessionId 쿠키값을 읽고, 세션 저장소에 보관한 sessionId 제거
 
 ---
+
+## V2 : 직접 만든 세션을 적용하여 로그인
+
+### 로그인
+```java
+@PostMapping("/login")
+public String loginV2(
+@Valid @ModelAttribute LoginForm form,
+        BindingResult bindingResult,
+        HttpServletResponse response) {
+        
+        // 아이디, 패스워드 검증 및 멤버객체 반환과정 생략
+
+        // TODO : 로그인 성공처리
+        // 세션 관리자를 통해 세션을 생성하고, 회원 데이터 보관
+        sessionManager.createSession(loginMember, response);
+        return "redirect:/";
+        }
+```
+- sessionManager를 통해 세션 생성(서버에서 사용자 데이터를 유지)
+  - sessionId를 key, 사용자 정보를 value로 보관
+  - response에 sessionId 값을 쿠키를 담음
+
+### 로그아웃
+```java
+    @PostMapping("/logout")
+    public String logOutV2(HttpServletRequest request) {
+        sessionManager.expire(request);
+        return "redirect:/";
+    }
+```
+- 세션매니저에서 더이상 사용자 객체를 저장하지 않게 함.
+
+### 홈 로그인
+```java
+    @GetMapping("/")
+    public String loginHomeV2(HttpServletRequest request, Model model) {
+
+        // 세션 관리자에 저장된 회원 정보 조회
+        Member member = (Member) sessionManager.getSession(request);
+
+        // 로그인
+        if (member == null) {
+            return "home";
+        }
+
+        model.addAttribute("member", member);
+        return "loginHome";
+    }
+```
+- 로그인 유저는 loginHome, 로그인 하지 않은 유저는 home을 보이도록 함.
