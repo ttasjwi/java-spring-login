@@ -164,3 +164,75 @@ public String loginV2(
     }
 ```
 - 로그인 유저는 loginHome, 로그인 하지 않은 유저는 home을 보이도록 함.
+
+---
+
+## 서블릿 - HttpSession
+
+### 로그인
+```java
+ @PostMapping("/login")
+    public String loginV3(
+            @Valid @ModelAttribute LoginForm form,
+            BindingResult bindingResult,ㅏ
+            HttpServletRequest request) {
+
+        // 생략
+        // 세션이 있으면 있는 세션 반환(재사용), 없으면 신규 세션을 생성
+        HttpSession session = request.getSession();
+        
+        // 세션에 로그인 회원 정보 보관
+        session.setAttribute(SessionConst.LOGIN_MEMBER, loginMember);
+        return "redirect:/";
+    }
+```
+
+### 세션의 생성과 조회
+- request.getSession(...) : 기본이 true
+  - request.getSession(true) : 세션이 있으면 있는 세션 반환(재사용), 없으면 새로 세션을 생성
+  - request.getSession(false) : 세션이 있으면 있는 세션 반환(재사용), 없으면 null 반환
+
+### 세션에 로그인 회원 정보 보관
+- session.setAttribute(세션명, 보관하는 정보)
+  - 하나의 세션에 여러개의 값을 저장할 수 있다.
+
+### 로그아웃
+```java
+@PostMapping("/logout")
+public String logOutV3(HttpServletRequest request) {
+    HttpSession session = request.getSession(false); // 없으면 null 반환.
+    
+    if (session != null) {
+        session.invalidate(); // 세션의 데이터 사라짐
+    }
+    return "redirect:/";
+}
+```
+- session.invalidate() : 세션 제거
+
+### homeLogin
+```java
+@GetMapping("/")
+public String loginHomeV3(HttpServletRequest request, Model model) {
+
+    HttpSession session = request.getSession(false);
+
+    if (session == null) {
+        return "home";
+    }
+
+    Member member = (Member) session.getAttribute(SessionConst.LOGIN_MEMBER);
+
+    // 세션에 홈 데이터가 없으면 home
+    if (member == null) {
+        return "home";
+    }
+
+    // 세션이 유지되고 데이터가 있는 것이 확인되면 로그인 홈으로 이동
+    model.addAttribute("member", member);
+    return "loginHome";
+}
+```
+- session.getAttribute(...) : 세션명에 대응하는 보관 데이터를 Object로 반환
+
+---
