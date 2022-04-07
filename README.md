@@ -235,4 +235,33 @@ public String loginHomeV3(HttpServletRequest request, Model model) {
 ```
 - session.getAttribute(...) : 세션명에 대응하는 보관 데이터를 Object로 반환
 
+### 스프링(@SessionAttribute)
+
+```java
+    @GetMapping("/")
+    public String loginHomeV3Spring(
+            @SessionAttribute(name = SessionConst.LOGIN_MEMBER, required = false) Member loginMember, Model model) {
+        // 세션에 홈 데이터가 없으면 home
+        if (loginMember == null) {
+            return "home";
+        }
+
+        // 세션이 유지되고 데이터가 있는 것이 확인되면 로그인 홈으로 이동
+        model.addAttribute("member", loginMember);
+        return "loginHome";
+    }
+```
+- 세션이 필요한 로직이 있을 때, `@SessionAttribute`를 통해 바로 객체 반환
+  - name : 세션명
+  - required : 필수값이면 true, 아니면 false
+
+### URL에 세션값 넘기지 않기
+```java
+## URL에 세션값이 노출되지 않음
+server.servlet.session.tracking-modes=cookie
+```
+- 웹브라우저가 쿠키를 지원하지 않을 때 쿠키 대신 URL을 통해 세션을 유지
+- 서버 입장에선 브라우저가 지원하는지 안 하는지 여부를 모르므로, 쿠키 값도 URL에 전달함
+- 이 방식을 끄려면 application.properties에서 별도로 설정해야함
+
 ---
