@@ -265,3 +265,23 @@ server.servlet.session.tracking-modes=cookie
 - 이 방식을 끄려면 application.properties에서 별도로 설정해야함
 
 ---
+
+## Session의 여러가지 메서드
+
+```java
+session.getAttributeNames().asIterator()
+.forEachRemaining(name ->
+log.info("session name = {}, value = {}", name, session.getAttribute(name)));
+
+log.info("sessionId = {}", session.getId());
+log.info("getMaxInactiveInterval = {}", session.getMaxInactiveInterval());
+log.info("creationTime = {}", new Date(session.getCreationTime()));
+log.info("lastAccessedTime = {}", new Date(session.getLastAccessedTime()));
+log.info("isNew= {}",session.isNew());
+return "세션 출력";
+```
+- `getAttributeNames()` : 각 (sessionName, Value)들에 접근
+- `getMaxInactiveInterval()` : 세션의 유효시간. 1800(30분)초.
+- `getCreationTime()` : 세션의 생성시각
+- `getLastAccessedTime()` : 세션과 연결된 사용자가 최근에 서버에 접근한 시간.
+- `isNew()` : 새로 생성되면 true, 아니면 false
