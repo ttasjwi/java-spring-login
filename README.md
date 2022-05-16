@@ -6,7 +6,7 @@
 
 ---
 
-## 로그인/로그아웃 - 쿠키 기반
+# 로그인/로그아웃 - 쿠키 기반
 
 ### 쿠키 기반 로그인
 ```java
@@ -235,7 +235,7 @@ public String loginHomeV3(HttpServletRequest request, Model model) {
 ```
 - session.getAttribute(...) : 세션명에 대응하는 보관 데이터를 Object로 반환
 
-### 스프링(@SessionAttribute)
+### 스프링(`@SessionAttribute`)
 
 ```java
     @GetMapping("/")
@@ -319,5 +319,82 @@ server.servlet.session.timeout=60
 - 하지만 아무리 이렇게 HttpSession이 관리해주더라도, 세션에는 최소한의 데이터를 보관해야함.
   - 메모리 차지 용량 : 보관 데이터 용량 * 사용자 수 -> 장애 발생 가능성 증가
   - 필요에 따라 타임아웃 시간을 조정할 것. 기본값은 1800초
+
+---
+
+# 로그인 처리 2 - 필터, 인터셉터
+
+## 7.1 서블릿 필터 - 소개
+<details>
+<summary>접기/펼치기 버튼</summary>
+<div markdown="1">
+
+### 7.1.1) 웹과 관련된 공통 관심사
+- 공통관심사(cross-cutting-concern) : 애플리케이션 여러 로직에서 공통으로 관심이 있는 것
+  - 일반적인 처리방법 : 스프링 AOP
+- 웹과 관련된 공통관심사 처리 : 서블릿 필터, 스프링 인터셉터
+  - http 헤더, url 등의 정보가 필요함.
+  - 서블릿 필터, 스프링 인터셉터는 `HttpServletRequest`를 제공
+
+### 7.1.2) 서블릿 필터의 흐름
+```
+HTTP 요청 -> WAS -> 필터 -> 서블릿 -> 컨트롤러
+```
+- 필터를 적용하면, 서블릿이 호출되기 전에 필터가 호출
+  - 스프링에서는 디스패처 서블릿
+- 필터는 글로벌하게 적용할 수도 있고, 특정 URL 패턴에 적용할 수 있음.
+  - 예) `/*`로 하면 모든 요청에 필터가 적용됨
+
+### 7.1.3) 서블릿 필터의 제한 처리
+```
+// 로그인 사용자
+HTTP 요청 -> WAS -> 필터 -> 서블릿 -> 컨트롤러 
+```
+```
+// 비 로그인 사용자
+HTTP 요청 -> WAS -> 필터(적절하지 않은 요청이라 판단, 서블릿 호출 x) 
+```
+- 필터에서 적절하지 않은 요청이라 판단되면 거기서 끝을 낼 수 있음.
+  - 로그인 여부 체크에 매우 유용하다.
+
+### 7.1.4) 서블릿 필터 체인
+```
+HTTP 요청 -> WAS -> 필터1 -> 필터2 -> 필터3 -> ... -> 서블릿 -> 컨트롤러
+```
+- 필터는 체인으로 구성되고, 중간에 여러 필터를 자유롭게 추가할 수 있음.
+  - 예) 로그필터 - 로그인 여부 체크 필터 - ...
+
+### 7.1.5) Filter 인터페이스
+```java
+public interface Filter {
+
+    public default void init(FilterConfig filterConfig) throws ServletException {}
+  
+    public void doFilter(ServletRequest request, ServletResponse response,
+            FilterChain chain) throws IOException, ServletException;
+
+    public default void destroy() {}
+}
+```
+필터 인터페이스를 구현한 구현체를 등록하면 서블릿 컨테이너가 필터를 싱글톤 객체로 생성하고 관리
+- `init()` : 필터 초기화 메서드
+- `doFilter()` : 고객의 요청이 들어올 때마다 호출되는 메서드. 필터의 로직을 구현하면 됨
+- `destoy()` : 필터 종료 메서드. 서블릿 컨테이너가 종료될 때 호출
+
+</div>
+</details>
+
+## 7.2 서블릿 필터 - 요청 로그
+
+
+## 7.3 서블릿 필터 - 인증 체크
+
+## 7.4 스프링 인터셉터 - 소개
+
+## 7.5 스프링 인터셉터 - 요청 로그
+
+## 7.6 스프링 인터셉터 - 인증 체크
+
+## 7.7 ArgumentResolver 활용
 
 ---
