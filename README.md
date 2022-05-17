@@ -385,7 +385,81 @@ public interface Filter {
 </details>
 
 ## 7.2 서블릿 필터 - 요청 로그
+<details>
+<summary>접기/펼치기 버튼</summary>
+<div markdown="1">
 
+### LogFilter
+```java
+@Slf4j
+public class LogFilter implements Filter {
+
+    @Override
+    public void init(FilterConfig filterConfig) throws ServletException {
+        log.info("log filter init");
+    }
+
+    @Override
+    public void doFilter(ServletRequest request, ServletResponse response, FilterChain chain) throws IOException, ServletException {
+        log.info("log filter doFilter");
+
+        HttpServletRequest httpRequest = (HttpServletRequest) request;
+
+        String uuid = UUID.randomUUID().toString();
+        String requestURI = httpRequest.getRequestURI();
+
+        try {
+            log.info("REQUEST [{}][{}]",uuid, requestURI);
+            chain.doFilter(request, response);
+        } catch (Exception e) {
+            throw e;
+        } finally {
+            log.info("RESPONSE [{}] [{}]", uuid, requestURI);
+        }
+    }
+    
+  // ... 생략
+```
+- implements Filter (import javax.servlet.*)
+  - 필터를 사용하려면 Filter 인터페이스를 구현해야한다.
+- doFilter(ServletRequest request, ServletResponse response, FilterChain chain)
+  - http 요청이 오면 호출됨
+  - HTTP를 사용한다면 ServletRequest, ServletResponse를 HttpServletRequest, HttpServletResponse로 다운캐스팅해야함.
+  - **chain.doFilter**
+    - 다음 필터가 있으면 다음 필터 호출, 없으면 서블릿 호출
+    - 이 로직이 호출되지 않으면 다음단계로 진행되지 않음
+- String uuid
+  - HTTP 요청을 구분하기 위함
+- log.info(...)
+  - uuid, requestURI 등을 출력
+
+### WebConfig : 필터 설정
+```java
+@Configuration
+public class WebConfig {
+
+    @Bean
+    public FilterRegistrationBean logFilter() {
+        FilterRegistrationBean<Filter> filterRegistrationBean = new FilterRegistrationBean<>();
+        filterRegistrationBean.setFilter(new LogFilter());
+        filterRegistrationBean.setOrder(1);
+        filterRegistrationBean.addUrlPatterns("/*");
+        return filterRegistrationBean;
+    }
+}
+```
+- 스프링 부트 사용시 FilterRegistrationBean을 등록
+  - setFilter : 필터 등록
+  - serOrder : 순서 지정
+  - addUrlPattern : 필터를 적용할 URL 패턴(한번에 여러 패턴 적용 가능)
+    - url 패턴
+      - 서블릿 URL패턴과 동일
+- `@ServletComponentScan`, `@WebFilter(filterName="logFilter", urlPatterns="/*"`로 필터등록 가능
+  - 하지만, 필터 순서 조절이 안 되므로 FilterRegistrationBean을 사용하는 것이 좋음
+- 실무에서 HTTP 요청 시 같은 요청의 로그에 모두 같은 식별자를 자동으로 남기려면 logback.mdc로 검색
+
+</div>
+</details>
 
 ## 7.3 서블릿 필터 - 인증 체크
 
