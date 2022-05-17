@@ -660,6 +660,99 @@ public interface HandlerInterceptor {
 
 
 ## 7.5 스프링 인터셉터 - 요청 로그
+<details>
+<summary>접기/펼치기 버튼</summary>
+<div markdown="1">
+
+### 7.5.1 LogInterceptor - 요청 로그 인터셉터
+```java
+@Slf4j
+public class LogInterceptor implements HandlerInterceptor {
+
+    public static final String LOG_ID = "logId";
+
+    @Override
+    public boolean preHandle(HttpServletRequest request, HttpServletResponse response, Object handler) throws Exception {
+
+        String requestURI = request.getRequestURI();
+        String logId = UUID.randomUUID().toString();
+
+        request.setAttribute(LOG_ID, logId);
+
+        // ... 생략
+      
+        return true;
+    }
+
+    @Override
+    public void postHandle(HttpServletRequest request, HttpServletResponse response, Object handler, ModelAndView modelAndView) throws Exception {
+        log.info("postHandle [{}]", modelAndView);
+    }
+
+    @Override
+    public void afterCompletion(HttpServletRequest request, HttpServletResponse response, Object handler, Exception ex) throws Exception {
+        String requestURI = request.getRequestURI();
+        String logId = (String) request.getAttribute(LOG_ID);
+        log.info("RESPONSE [{}][{}][{}]", logId, requestURI, handler);
+        if (ex != null) {
+            log.error("afterCompletion error!", ex);
+        }
+    }
+}
+```
+- `String logId = UUID.randomUUID().toString`
+  - 요청 로그를 구분하기 위한 uuid 생성
+- `request.setAttribute(LOG_ID, logId)`
+  - 서블릿 필터와 달리 스프링 인터셉터에서는 호출 시점이 여러 메서드에 나뉘어 있음. 같은 logId를 여러 메서드에서 공유하기 위해서, request에 담아둠
+  - 이후 꺼내 쓸 때는 request.getAttribute(LOG_ID)로 찾아 씀
+- return true
+  - preHandle 메서드 반환 : true면 정상 호출. 다음 인터셉터나 컨트롤러가 호출 
+  
+### 7.5.2 HanlerMethod, ResourceHttpRequestHandler
+```java
+        // @RequestMapping : HandlerMethod
+        // 정적 리소스 : ResourceHttpRequestHandler
+        if (handler instanceof HandlerMethod) {
+            HandlerMethod hm = (HandlerMethod) handler; // 호출할 컨트롤러 메서드의 모든 정보가 포함되어 있음
+            // hm을 이용한 로직
+        }
+        log.info("REQUEST [{}][{}][{}]",logId, requestURI, handler);
+```
+- **HandlerMethod**
+  - Hanler 호출 직전에 preHandle이 호출됨.
+  - 스프링을 사용하면 일반적으로 `@Controller`, `@RequestMapping`을 활용한 핸들러 매핑을 사용하는데, 이 때 핸들러 정보로 HandlerMethod가 넘어옴.
+- **ResourceHttpRequestHandler**
+  - `@Controller`가 아니라 `/resources/static`와 같은 정적 리소스가 호출되는 경우, ResourceHttpRequestHandler가 핸들러 정보로 넘어오기 때문에 타입에 따라서 처리가 필요
+
+### 7.5.3 postHandle, afterCompletion
+- 예외가 발생시에는 postHandle이 호출되지 않음
+- 예외 발생과 무관하게 afterCompletion은 항상 호출됨이 보장
+  - 종료 로그는 afterCompletion에 작성
+
+### 7.5.4 WebConfig - 인터셉터 등록
+```java
+@Configuration
+public class WebConfig implements WebMvcConfigurer {
+
+    @Override
+    public void addInterceptors(InterceptorRegistry registry) {
+        registry.addInterceptor(new LogInterceptor())
+                .order(1)
+                .addPathPatterns("/**")
+                .excludePathPatterns("/css/**", "/*.ico", "/error");
+    }
+```
+- WebMvcConfigurer를 구현한 클래스를 빈으로 등록
+  - addInterceptors : 인터셉터 등록
+    - registry.addInterceptor : 인터셉터 추가
+    - order : 호출 순서 지정
+    - addPathPatterns : 인터셉터를 적용할 url 패턴 지정
+    - excludePathPatterns : 인터셉터에서 제외할 url 패턴 지정
+- 인터셉터는 필터와 달리 addPathPatterns, excludePathPatterns로 정밀하게 URL 패턴 지정 가능
+  - URL 경로 패턴 : [스프링 공식 문서](https://docs.spring.io/spring-framework/docs/current/javadoc-api/org/springframework/web/util/pattern/PathPattern.html)
+
+</div>
+</details>
 
 ## 7.6 스프링 인터셉터 - 인증 체크
 
