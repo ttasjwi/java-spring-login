@@ -581,6 +581,83 @@ public FilterRegistrationBean loginCheckFilter() {
 </details>
 
 ## 7.4 스프링 인터셉터 - 소개
+<details>
+<summary>접기/펼치기 버튼</summary>
+<div markdown="1">
+
+### 7.4.1 스프링 인터셉터의 흐름
+```
+HTTP 요청 -> WAS -> 필터 -> 서블릿 -> 스프링 인터셉터 -> 컨트롤러
+```
+- 스프링 인터셉터는 디스패처 서블릿과 컨트롤러 사이에서 컨트롤러 호출 직전에 호출
+- 스프링 인터셉터는 스프링 MVC가 제공하는 기능이기 때문에 결국, 디스패처 서블릿 이후에 등장
+- **스프링 MVC의 시작점은 사실상 스프링 인터셉터**
+- 스프링 인터셉터에도 URL 패턴을 적용할 수 있는데, 서블릿 URL 패턴과는 다르고 매우 정밀하게 사용할 수 있음
+
+### 7.4.2 스프링 인터셉터 제한
+```
+// 로그인 사용자
+HTTP 요청 -> WAS -> 필터 -> 서블릿 -> 스프링 인터셉터 -> 컨트롤러
+
+// 비 로그인 사용자
+HTTP 요청 -> WAS -> 필터 -> 서블릿 -> 스프링 인터셉터(적절하지 않은 요청이라 판단, 컨트롤러 호출 x)
+```
+- 서블릿 필터와 마찬가지로 적절하지 않은 요청이라 판단하면 거기서 끝을 낼 수 있음
+- 로그인 여부 체크를 할 때 좋음
+
+### 7.4.3 스프링 인터셉터 체인
+```
+HTTP 요청 -> WAS -> 필터 -> 서블릿 -> 인터셉터1 -> 인터셉터2 -> ... -> 컨트롤러
+```
+- 인터셉터 또한 체인으로 구성되고, 중간에 여러 필터를 자유롭게 추가할 수 있음.
+  - 예) 로그 인터셉터 - 로그인 여부 체크 인터셉터 - ...
+- 여기까지만 놓고보면 서블릿 필터랑 호출 순서만 다르고 기능이 비슷해보이지만, 스프링 인터셉터는 서블릿 필터보다 더 편리하고 정교하고 다양한 기능을 지원함
+
+### 7.4.4 스프링 인터셉터 인터페이스
+```java
+public interface HandlerInterceptor {
+    
+	default boolean preHandle(HttpServletRequest request, HttpServletResponse response, Object handler)
+			throws Exception {
+		return true;
+	}
+    
+	default void postHandle(HttpServletRequest request, HttpServletResponse response, Object handler,
+			@Nullable ModelAndView modelAndView) throws Exception {
+	}
+    
+	default void afterCompletion(HttpServletRequest request, HttpServletResponse response, Object handler,
+			@Nullable Exception ex) throws Exception {
+	}
+}
+```
+- `HandlerInterCeptor` 인터페이스 구현
+- 서블릿 필터는 단순히 doFilter() 하나만 제공되지만, 스프링 인터셉터는 호출 전, 호출 후, 요청 완료 이후와 같이 단계적으로 세분화되어 있음.
+- 서블릿 필터는 단순히 request, response만 제공했지만 인터셉터는 어느 컨트롤러(handler)가 호출되는지에 관한 호출정보, 그리고 어떤 modelAndView가 반환되는지 응답 정보도 받을 수 있음
+
+### 7.4.5 스프링 인터셉터 호출 흐름
+- 정상 흐름
+  - preHandle : 컨트롤러 호출 전에 호출 (정확히는 핸들러 어댑터 호출 직전)
+    - 응답 true : 다음으로
+    - 응답 false : 끝 (나머지 인터셉터는 물론이며, 핸들러 어댑터도 호출되지 않음)
+  - postHandle : 컨트롤러 호출 후에 호출됨(정확히는 핸들러 어댑터 호출 후 호출됨)
+  - afterCompletion : 뷰가 렌더링/API 응답된 이후 실행
+- 컨트롤러에서 예외가 발생한 상황
+  - preHandle : 컨트롤러 호출 전에 호출
+  - postHandle : 컨트롤러에서 예외 발생 시 postHandle이 호출되지 않음.
+  - afterCompletion : 항상 호출됨. 이 때, 예외를 parameter로 받아서 어떤 예외가 발생했는 지 로그로 출력할 수 있음.
+- **afterCompletion**은 예외가 발생해도 호출된다.
+  - 예외가 발생하면 postHandle()이 호출되지 않으므로, 예외와 무관하게 공통적으로 처리하기 위해서는 afterCompletion()을 사용해야한다.
+  - 예외가 발생하면 afterCompletion()에 예외 정보(exception)를 포함하여 호출된다.
+
+### 7.4.6 그래서 뭐 써요?
+- 인터셉터 : 스프링 MVC 구조에 특화된 필터 기능 제공.
+- 스프링MVC를 사용하지 않고 특별히 필터를 사용해야하는 상황이 아니라면 인터셉터를 사용하는 것이 더 편리.
+- **웬만해선 인터셉터 쓰자!**
+
+</div>
+</details>
+
 
 ## 7.5 스프링 인터셉터 - 요청 로그
 
