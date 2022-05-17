@@ -755,6 +755,65 @@ public class WebConfig implements WebMvcConfigurer {
 </details>
 
 ## 7.6 스프링 인터셉터 - 인증 체크
+<details>
+<summary>접기/펼치기 버튼</summary>
+<div markdown="1">
+
+### 7.6.1 LoginCheckInterceptor
+```java
+@Slf4j
+public class LoginCheckInterceptor implements HandlerInterceptor {
+
+    @Override
+    public boolean preHandle(HttpServletRequest request, HttpServletResponse response, Object handler) throws Exception {
+        String requestURI = request.getRequestURI();
+        log.info("인증 체크 인터셉터 실행 {}", requestURI);
+
+        HttpSession session = request.getSession();
+
+        if (session == null || session.getAttribute(SessionConst.LOGIN_MEMBER) == null) {
+            log.info("미인증 사용자 요청");
+            response.sendRedirect("/login?redirectURL="+requestURI);
+            return false;
+        }
+        return true;
+    }
+
+}
+```
+- 서블릿 필터 : 요청 URI가 화이트리스트인지 여부를 확인하는 로직이 필요했음
+- 스프링 인터셉터 : 인터셉터를 적용하지 않을 URL을 등록시점에서 지정하면 되기 때문에, 인터셉터 내부에서 필터링 로직을 구현하지 않아도 됨
+- 인증은 컨트롤러 호출 전에만 호출되면 되므로, preHandle만 구현하면 됨
+
+### 7.6.2 세밀한 설정
+```java
+@Configuration
+public class WebConfig implements WebMvcConfigurer {
+
+  @Override
+  public void addInterceptors(InterceptorRegistry registry) {
+    registry.addInterceptor(new LogInterceptor())
+            .order(1)
+            .addPathPatterns("/**")
+            .excludePathPatterns("/css/**", "/*.ico", "/error");
+
+    registry.addInterceptor(new LoginCheckInterceptor())
+            .order(2)
+            .addPathPatterns("/**")
+            .excludePathPatterns(
+                    "/", "/members/add", "/login", "/logout",
+                    "/css/**", "/*.ico", "/error"
+            );
+  }
+  
+  // 생략
+}
+```
+- 인터셉터를 적용할 URL : addPathPatterns
+- 인터셉터를 적용하지 않을 URL : excludePathPatterns
+
+</div>
+</details>
 
 ## 7.7 ArgumentResolver 활용
 
