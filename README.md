@@ -462,6 +462,123 @@ public class WebConfig {
 </details>
 
 ## 7.3 서블릿 필터 - 인증 체크
+<details>
+<summary>접기/펼치기 버튼</summary>
+<div markdown="1">
+
+### LoginCheckFilter
+```java
+@Slf4j
+public class LoginCheckFilter implements Filter {
+
+    private static final String[] whiteURIs = {"/", "/members/add", "/login", "/logout", "/css/*"};
+
+    @Override
+    public void doFilter(ServletRequest request, ServletResponse response, FilterChain chain) throws IOException, ServletException {
+        HttpServletRequest httpRequest = (HttpServletRequest) request;
+        HttpServletResponse httpResponse = (HttpServletResponse) response;
+        String requestURI = httpRequest.getRequestURI();
+
+        try {
+            log.info("인증 체크 필터 시작 {}", requestURI);
+
+            if (isLoginCheckPath(requestURI)) {
+                log.info("인증 체크 로직 실행 {}", requestURI);
+                HttpSession session = httpRequest.getSession(false);
+
+                if (session == null || session.getAttribute(SessionConst.LOGIN_MEMBER) == null) {
+                    log.info("미인증 사용자 요청 {}", requestURI);
+
+                    // 로그인으로 redirect + 뒤에 요청 URI를 같이 붙임.
+                    httpResponse.sendRedirect("/login?redirectURL="+requestURI);
+                    return; // 제일 중요. 리다이렉트 시키고 여기서 더 이상 다음으로 넘기지 않고 끝
+                }
+            }
+            chain.doFilter(request, response);
+        } catch (Exception e) {
+            throw e; // 예외를 로깅가능하지만, 톰캣까지 예외를 보내주어야 함.
+        } finally {
+            log.info("인증 체크 필터 종료");
+        }
+    }
+
+
+    /**
+     * 화이트 리스트의 경우 인증체크 x
+     */
+    private boolean isLoginCheckPath(String requestURI) {
+        return !PatternMatchUtils.simpleMatch(whiteURIs, requestURI);
+    }
+}
+```
+- whiteURIs : 필터의 적용을 받지 않는 화이트리스트 목록
+  - 인증필터를 적용하더라도 접근할 수 있어야하는 uri들
+    - 예) 홈 화면, 회원가입 페이지, 로그인 화면, css 등
+- `isLoginCheckPath`
+  - 화이트 리스트가 아닌 일반 uri들인지 확인
+- `sendRedirect` : 필터링 될 경우, "/login"으로 쿼리 파라미터에 함께 이전 url을 전달
+- return : 더는 진행시키지 않음. redirect 시키고 요청 종료
+
+### LoginCheckFilter 빈 등록
+```java
+@Bean
+public FilterRegistrationBean loginCheckFilter() {
+    FilterRegistrationBean<Filter> filterRegistrationBean = new FilterRegistrationBean<>();
+    filterRegistrationBean.setFilter(new LoginCheckFilter());
+    filterRegistrationBean.setOrder(2);
+    filterRegistrationBean.addUrlPatterns("/*");
+    return filterRegistrationBean;
+}
+```
+- 모든 요청에 필터를 적용
+  - 필터 안에서 화이트 리스트를 적용해두고 내부 로직으로 걸러냄.
+  - 더 이상 registrationBean 자체를 수정하지 않음
+
+### LoginController V4 : 로그인 이후 리다이렉트 처리
+```java
+    /**
+     * 로그인 이후 redirect 처리
+     */
+    @PostMapping("/login")
+    public String loginV4(
+            @Valid @ModelAttribute LoginForm form,
+            @RequestParam(defaultValue = "/") String redirectURL,
+            BindingResult bindingResult,
+            HttpServletRequest request) {
+
+        if (bindingResult.hasErrors()) {
+            return "login/loginForm";
+        }
+
+        Member loginMember = loginService.login(form.getLoginId(), form.getPassword());
+
+        if (loginMember == null) {
+            bindingResult.reject("LoginFail", "아이디 또는 패스워드가 맞지 않습니다.");
+            return "login/loginForm";
+        }
+
+        // TODO : 로그인 성공처리
+
+        // 세션이 있으면 있는 세션 반환(재사용), 없으면 신규 세션을 생성
+        HttpSession session = request.getSession();
+
+        // 세션에 로그인 회원 정보 보관
+        session.setAttribute(SessionConst.LOGIN_MEMBER, loginMember);
+        return "redirect:"+redirectURL;
+    }
+```
+- `RequestParam`으로 리다이렉트 경로 바인딩
+  - 디폴트로 "/"
+  - 필터로 리다이렉트 시 requestParam에 리다이렉트 url이 바인딩 되서 들어옴
+- redirectURL을 이용해서 로그인 성공 시 해당 경로로 고객 redirect 시킴
+
+### 참고
+- 필터에서는 chain.doFilter를 호출해서 다음 필터 또는 서블릿 호출 시 request, response를 다른 객체로 바꿀 수 있음
+- servletRequest, servletResponse를 구현한 다른 객체를 만들어서 해당 객체가 다음 필터 또는 서블릿에서 사용됨
+- 잘 사용되지는 않는 기능.
+
+</div>
+</details>
 
 ## 7.4 스프링 인터셉터 - 소개
 
