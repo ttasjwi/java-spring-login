@@ -816,5 +816,79 @@ public class WebConfig implements WebMvcConfigurer {
 </details>
 
 ## 7.7 ArgumentResolver 활용
+<details>
+<summary>접기/펼치기 버튼</summary>
+<div markdown="1">
+
+### 7.7.1 `@Login` 어노테이션 생성
+```java
+@Target(ElementType.PARAMETER) // 파라미터에만 사용
+@Retention(RetentionPolicy.RUNTIME) // 리플렉션을 사용할 수 있도록 런타임까지 어노테이션 정보가 남아있음
+public @interface Login {
+}
+```
+- `@Target` : 어노테이션을 사용할 수 있는 위치
+  - `@Target(ElementType.PARAMENTER)` : 파라미터에만 사용 가능
+- `@Retention` : 어노테이션의 수명
+  - `@Retention(RetentionPolicy.RUNTIME)` : 리플렉션을 사용할 수 있도록 런타임까지 어노테이션 정보가 남아있음
+
+### 7.7.2 LoginMemberArgumentResolver
+```java
+@Slf4j
+public class LoginMemberArgumentResolver implements HandlerMethodArgumentResolver {
+
+    @Override
+    public boolean supportsParameter(MethodParameter parameter) {
+        log.info("supportsParameter 실행");
+
+        boolean hasLoginAnnotation = parameter.hasParameterAnnotation(Login.class);
+        boolean hasMemberType = Member.class.isAssignableFrom(parameter.getParameterType());
+        return hasLoginAnnotation && hasMemberType;
+    }
+
+    @Override
+    public Object resolveArgument(MethodParameter parameter, ModelAndViewContainer mavContainer, NativeWebRequest webRequest, WebDataBinderFactory binderFactory) throws Exception {
+
+        log.info("resolveArgument 실행");
+
+        HttpServletRequest request = (HttpServletRequest) webRequest.getNativeRequest();
+        HttpSession session = request.getSession(false);
+
+        if (session == null) {
+            return null;
+        }
+
+        return session.getAttribute(SessionConst.LOGIN_MEMBER);
+    }
+}
+```
+- `HandlerMethodArgumentResolver` 구현
+  - `supportsParameter` : 이 ArgumentResolver가 해당 파라미터로의 resolve를 지원하는 지의 여부
+  - `resolveArgument` : 컨트롤러(핸들러)에서 필요한 파라미터 정보 생성 로직
+    - 여기서는 session을 조회해서, 세션에 있는 로그인 회원 정보를 가져오고 Object 타입으로 반환함
+    - session을 조회해서 로그인 회원 정보가 없으면 null을 반환
+
+### 7.7.3 WebMvcConfigurer에 설정 추가
+```java
+@Configuration
+public class WebConfig implements WebMvcConfigurer {
+
+    @Override
+    public void addArgumentResolvers(List<HandlerMethodArgumentResolver> resolvers) {
+        resolvers.add(new LoginMemberArgumentResolver());
+    }
+}
+```
+- addArgumentResolvers : 별도로 정의한 argumentResolver를 등록함
+  - 이제 SpringMvc는 resolvers들을 순서대로 조회하여 `supportsParameter` 여부를 확인하고, 지원하면 해당 ArgumentResolver의 resolverArgument 메서드를 호출해 파라미터에 전달할 인자를 생성한다.
+
+### 7.7.4 결론
+- 로그인이 필요한 로직에서, 로그인 회원 데이터를 꺼내올 때
+  - 어노테이션을 별도로 정의
+  - 이를 지원하는 ArgumentResolver를 등록 
+  - 이를 활용하면 편리하게 로그인 회원 데이터를 파라미터에 바인딩하여 사용할 수 있다.
+
+</div>
+</details>
 
 ---
